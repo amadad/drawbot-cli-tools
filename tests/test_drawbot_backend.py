@@ -7,6 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 import drawbot_backend as backend
+from cli.main import _get_template
 
 
 @pytest.fixture(autouse=True)
@@ -111,3 +112,11 @@ def test_proxy_uses_resolved_backend_module(fake_imports):
     available.add("drawBot")
 
     assert backend.db.magic == 42
+
+
+@pytest.mark.parametrize("template_name", ["minimal", "grid", "text"])
+def test_scaffold_templates_use_backend_wrapper(template_name):
+    template = _get_template(template_name, "example", "letter")
+
+    assert "from drawbot_backend import db" in template
+    assert "import drawBot as db" not in template

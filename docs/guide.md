@@ -5,7 +5,7 @@
 ## Quick Start
 
 ```python
-import drawBot as db
+from drawbot_backend import db
 from drawbot_grid import Grid
 from drawbot_design_system import (
     POSTER_SCALE,
@@ -41,6 +41,38 @@ draw_wrapped_text(
 # 6. Save with portable paths (works on any machine)
 db.saveImage(str(get_output_path("output.pdf")))
 ```
+
+## Backend Selection
+
+Install one of the supported backends:
+
+```bash
+# Native DrawBot on macOS
+uv sync --extra cli --extra drawbot
+
+# Cross-platform backend
+uv sync --extra cli --extra drawbot-skia
+```
+
+Backend resolution order for CLI-owned flows and wrapper-aware scripts:
+
+1. `--backend`
+2. `DRAWBOT_BACKEND`
+3. auto-detect, preferring native `drawBot` first and `drawbot-skia` second
+
+Examples:
+
+```bash
+drawbot from-spec poster.yaml --backend drawbot-skia
+DRAWBOT_BACKEND=drawbot-skia drawbot render poster.py
+```
+
+Phase 1 is intentionally incremental:
+
+- repo-owned library and spec-rendering flows are backend-aware
+- newly generated scaffolds use `from drawbot_backend import db`
+- existing DrawBot workflows remain supported for scripts that still do `import drawBot as db`
+- arbitrary legacy scripts are not rewritten automatically
 
 ## What's Fixed
 
@@ -316,7 +348,7 @@ grid.draw(show_index=True)  # Shows grid lines + indices
 ### Poster Layout
 
 ```python
-import drawBot as db
+from drawbot_backend import db
 from drawbot_grid import Grid
 from drawbot_design_system import (
     POSTER_SCALE,
@@ -446,6 +478,27 @@ output = get_output_path("file.pdf")
 
 ## Migration Guide
 
+### For New Scripts
+
+Prefer the backend wrapper in new repo-owned scripts and scaffolds:
+
+```python
+from drawbot_backend import db
+```
+
+This keeps the same drawing API while allowing backend selection through the CLI or `DRAWBOT_BACKEND`.
+
+### For Existing DrawBot Scripts
+
+Existing DrawBot-first scripts still work unchanged when native DrawBot is installed:
+
+```python
+import drawBot as db
+```
+
+Keep using that form if you rely on native DrawBot directly. Phase 1 does not force a repo-wide rewrite.
+
+
 ### Updating Old Scripts
 
 1. **Replace page setup**:
@@ -521,6 +574,12 @@ output = "/Users/amadad/Projects/tools/drawbot-redux/output/file.pdf"
 from drawbot_design_system import get_output_path
 output = get_output_path("file.pdf")
 db.saveImage(str(output))
+```
+
+7. **Optional backend wrapper for new scripts**:
+```python
+# NEW scaffold style:
+from drawbot_backend import db
 ```
 
 ## See Also
