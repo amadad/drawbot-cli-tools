@@ -22,30 +22,7 @@ from pathlib import Path
 from typing import Tuple, List, Optional, Dict, Any
 from dataclasses import dataclass
 
-# Lazy import drawBot to allow core-only installs that don't use drawing functions
-_db = None
-
-def _get_db():
-    """Lazy-load drawBot on first use, with clear error if not installed."""
-    global _db
-    if _db is None:
-        try:
-            import drawBot as db_module
-            _db = db_module
-        except ImportError:
-            raise ImportError(
-                "drawBot is required for drawing functions but is not installed.\n"
-                "Install with: uv sync --extra drawbot\n"
-                "Or: pip install drawBot"
-            )
-    return _db
-
-# Create a proxy that lazy-loads on attribute access
-class _DrawBotProxy:
-    def __getattr__(self, name):
-        return getattr(_get_db(), name)
-
-db = _DrawBotProxy()
+from drawbot_backend import db
 
 __all__ = [
     # Path management

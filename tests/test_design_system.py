@@ -7,11 +7,13 @@ the actual DrawBot package (macOS only).
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+
 import pytest
 
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+
+import drawbot_backend as backend
 
 
 # ==================== MOCK DRAWBOT ====================
@@ -65,19 +67,24 @@ def mock_db():
     return MockDrawBot()
 
 
+@pytest.fixture(autouse=True)
+def reset_backend_state(monkeypatch):
+    backend._backend_cache.clear()
+    backend._resolved_backend_cache = None
+    monkeypatch.delenv(backend.DRAWBOT_BACKEND_ENV_VAR, raising=False)
+
+
 @pytest.fixture
 def patched_design_system(mock_db):
-    """Import design system with mocked DrawBot."""
-    with patch.dict('sys.modules', {'drawBot': mock_db}):
-        # Force reimport with mock
-        if 'drawbot_design_system' in sys.modules:
-            del sys.modules['drawbot_design_system']
+    """Import design system with mocked DrawBot backend."""
+    backend._backend_cache[backend.NATIVE_BACKEND] = mock_db
+    backend._resolved_backend_cache = None
 
-        # Patch the lazy loader
-        import drawbot_design_system as ds
-        ds._db = mock_db
-        ds.db = mock_db
-        yield ds
+    if 'drawbot_design_system' in sys.modules:
+        del sys.modules['drawbot_design_system']
+
+    import drawbot_design_system as ds
+    yield ds
 
 
 # ==================== TYPOGRAPHY SCALE TESTS ====================

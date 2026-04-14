@@ -23,34 +23,9 @@ Usage:
 
 from __future__ import annotations
 import math
-
-# Lazy import drawBot to allow core-only installs that don't use drawing functions
-_db = None
-
-def _get_db():
-    """Lazy-load drawBot on first use, with clear error if not installed."""
-    global _db
-    if _db is None:
-        try:
-            import drawBot as db_module
-            _db = db_module
-        except ImportError:
-            raise ImportError(
-                "drawBot is required for grid functions but is not installed.\n"
-                "Install with: uv sync --extra drawbot\n"
-                "Or: pip install drawBot"
-            )
-    return _db
-
-
-class _DrawBotProxy:
-    """Proxy that lazy-loads DrawBot on attribute access."""
-    def __getattr__(self, name):
-        return getattr(_get_db(), name)
-
-
-db = _DrawBotProxy()
 from typing import List, Union, Tuple, Iterator, Optional, overload
+
+from drawbot_backend import db
 
 # ==================== CORE GRID CLASSES ====================
 
