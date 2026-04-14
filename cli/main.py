@@ -17,7 +17,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from drawbot_backend import DRAWBOT_BACKEND_ENV_VAR, SUPPORTED_BACKENDS, resolve_backend
+from drawbot_backend import (
+    DRAWBOT_BACKEND_ENV_VAR,
+    SUPPORTED_BACKENDS,
+    normalize_backend_name,
+    resolve_backend,
+    validate_backend_name,
+)
 
 import typer
 from rich.console import Console
@@ -43,6 +49,16 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 def ensure_output_dir():
     """Ensure output directory exists."""
     OUTPUT_DIR.mkdir(exist_ok=True)
+
+
+def resolve_script_backend_selection(selected: Optional[str] = None) -> Optional[str]:
+    """Return an explicit backend selection for wrapper-aware scripts, if any."""
+    explicit = validate_backend_name(selected)
+    if explicit:
+        return explicit
+
+    env_selected = normalize_backend_name(os.environ.get(DRAWBOT_BACKEND_ENV_VAR))
+    return validate_backend_name(env_selected)
 
 
 def run_drawbot_script(
@@ -98,9 +114,13 @@ def run_drawbot_script(
 def render(
     script: Path = typer.Argument(..., help="Path to DrawBot script"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path"),
-    output_format: str = typer.Option("pdf", "--format", "-f", help="Output format: pdf, png, svg"),
+    output_format: str = typer.Option(
+        "pdf", "--format", "-f", help="Output format: pdf, png, svg"
+    ),
     open_file: bool = typer.Option(False, "--open", help="Open file after rendering"),
-    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
+    backend: Optional[str] = typer.Option(
+        None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"
+    ),
 ):
     """
     Render a DrawBot script to PDF/PNG/SVG.
@@ -113,10 +133,15 @@ def render(
 
     script = script.resolve()
 
-    backend_info = resolve_backend(selected=backend)
-    console.print(f"[blue]Rendering:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
+    selected_backend = resolve_script_backend_selection(backend)
+    if selected_backend:
+        console.print(
+            f"[blue]Rendering:[/blue] {script.name} [dim](backend={selected_backend})[/dim]"
+        )
+    else:
+        console.print(f"[blue]Rendering:[/blue] {script.name}")
 
-    success = run_drawbot_script(script, output, backend=backend_info.name)
+    success = run_drawbot_script(script, output, backend=selected_backend)
 
     if success:
         # Try to find the output file
@@ -124,7 +149,11 @@ def render(
             out_file = output
         else:
             # Look for most recent file in output/
-            outputs = sorted(OUTPUT_DIR.glob(f"*.{output_format}"), key=lambda p: p.stat().st_mtime, reverse=True)
+            outputs = sorted(
+                OUTPUT_DIR.glob(f"*.{output_format}"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
             out_file = outputs[0] if outputs else None
 
         if out_file and out_file.exists():
@@ -141,7 +170,9 @@ def render(
 @app.command()
 def preview(
     script: Path = typer.Argument(..., help="Path to DrawBot script"),
-    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
+    backend: Optional[str] = typer.Option(
+        None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"
+    ),
 ):
     """
     Quick render and open - for rapid iteration.
@@ -153,19 +184,28 @@ def preview(
 
     script = script.resolve()
 
-    backend_info = resolve_backend(selected=backend)
-    console.print(f"[blue]Preview:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
+    selected_backend = resolve_script_backend_selection(backend)
+    if selected_backend:
+        console.print(
+            f"[blue]Preview:[/blue] {script.name} [dim](backend={selected_backend})[/dim]"
+        )
+    else:
+        console.print(f"[blue]Preview:[/blue] {script.name}")
 
-    success = run_drawbot_script(script, backend=backend_info.name)
+    success = run_drawbot_script(script, backend=selected_backend)
 
     if success:
         # Find most recent PDF
-        outputs = sorted(OUTPUT_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True)
+        outputs = sorted(
+            OUTPUT_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
         if outputs:
             _open_file(outputs[0])
         else:
             # Try PNG
-            outputs = sorted(OUTPUT_DIR.glob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True)
+            outputs = sorted(
+                OUTPUT_DIR.glob("*.png"), key=lambda p: p.stat().st_mtime, reverse=True
+            )
             if outputs:
                 _open_file(outputs[0])
     else:
@@ -175,8 +215,12 @@ def preview(
 @app.command()
 def watch(
     script: Path = typer.Argument(..., help="Path to DrawBot script"),
-    open_first: bool = typer.Option(True, "--open/--no-open", help="Open file on first render"),
-    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
+    open_first: bool = typer.Option(
+        True, "--open/--no-open", help="Open file on first render"
+    ),
+    backend: Optional[str] = typer.Option(
+        None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"
+    ),
 ):
     """
     Watch script and re-render on changes.
@@ -188,7 +232,9 @@ def watch(
     try:
         from watchfiles import watch as watchfiles_watch
     except ImportError:
-        console.print("[red]Error:[/red] watchfiles not installed. Run: uv pip install watchfiles")
+        console.print(
+            "[red]Error:[/red] watchfiles not installed. Run: uv pip install watchfiles"
+        )
         raise typer.Exit(1)
 
     ensure_output_dir()
@@ -198,23 +244,32 @@ def watch(
         console.print(f"[red]Error:[/red] Script not found: {script}")
         raise typer.Exit(1)
 
-    backend_info = resolve_backend(selected=backend)
-    console.print(f"[blue]Watching:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
+    selected_backend = resolve_script_backend_selection(backend)
+    if selected_backend:
+        console.print(
+            f"[blue]Watching:[/blue] {script.name} [dim](backend={selected_backend})[/dim]"
+        )
+    else:
+        console.print(f"[blue]Watching:[/blue] {script.name}")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
     # Initial render
-    success = run_drawbot_script(script, backend=backend_info.name)
+    success = run_drawbot_script(script, backend=selected_backend)
 
     if success and open_first:
-        outputs = sorted(OUTPUT_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True)
+        outputs = sorted(
+            OUTPUT_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
         if outputs:
             _open_file(outputs[0])
 
     # Watch for changes
     try:
-        for changes in watchfiles_watch(script.parent, watch_filter=lambda _, p: p == str(script)):
+        for changes in watchfiles_watch(
+            script.parent, watch_filter=lambda _, p: p == str(script)
+        ):
             console.print(f"\n[yellow]Changed:[/yellow] {script.name}")
-            success = run_drawbot_script(script, backend=backend_info.name)
+            success = run_drawbot_script(script, backend=selected_backend)
             if success:
                 console.print("[green]Rendered[/green]")
     except KeyboardInterrupt:
@@ -224,9 +279,15 @@ def watch(
 @app.command()
 def new(
     name: str = typer.Argument(..., help="Name for the new poster script"),
-    page_format: str = typer.Option("letter", "--format", "-f", help="Page format: letter, a4, tabloid"),
-    template: str = typer.Option("minimal", "--template", "-t", help="Template: minimal, grid, text"),
-    output_dir: Optional[Path] = typer.Option(None, "--dir", "-d", help="Output directory"),
+    page_format: str = typer.Option(
+        "letter", "--format", "-f", help="Page format: letter, a4, tabloid"
+    ),
+    template: str = typer.Option(
+        "minimal", "--template", "-t", help="Template: minimal, grid, text"
+    ),
+    output_dir: Optional[Path] = typer.Option(
+        None, "--dir", "-d", help="Output directory"
+    ),
 ):
     """
     Scaffold a new poster script from template.
@@ -268,6 +329,7 @@ app.add_typer(templates_app, name="templates")
 
 # Import and add evolve subcommand
 from .evolve import app as evolve_app
+
 app.add_typer(evolve_app, name="evolve")
 
 
@@ -311,7 +373,7 @@ from pathlib import Path
 # Design system imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-import drawBot as db
+from drawbot_backend import db
 from drawbot_design_system import (
     POSTER_SCALE,
     setup_poster_page,
@@ -371,7 +433,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-import drawBot as db
+from drawbot_backend import db
 from drawbot_design_system import (
     POSTER_SCALE,
     setup_poster_page,
@@ -438,7 +500,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-import drawBot as db
+from drawbot_backend import db
 from drawbot_design_system import (
     POSTER_SCALE,
     setup_poster_page,
@@ -520,7 +582,9 @@ def from_spec(
     spec_file: Path = typer.Argument(..., help="YAML spec file"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path"),
     open_file: bool = typer.Option(False, "--open", help="Open after rendering"),
-    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
+    backend: Optional[str] = typer.Option(
+        None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"
+    ),
 ):
     """
     Render from YAML specification file.
@@ -532,7 +596,9 @@ def from_spec(
     try:
         from .spec import render_from_spec
     except ImportError:
-        console.print("[red]Error:[/red] YAML spec support not available. Install pyyaml and pydantic.")
+        console.print(
+            "[red]Error:[/red] YAML spec support not available. Install pyyaml and pydantic."
+        )
         raise typer.Exit(1)
 
     spec_file = spec_file.resolve()
@@ -542,7 +608,9 @@ def from_spec(
         raise typer.Exit(1)
 
     backend_info = resolve_backend(selected=backend)
-    console.print(f"[blue]Rendering spec:[/blue] {spec_file.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
+    console.print(
+        f"[blue]Rendering spec:[/blue] {spec_file.name} [dim]({backend_info.name} via {backend_info.source})[/dim]"
+    )
 
     try:
         out_path = render_from_spec(spec_file, output, backend=backend_info.name)
