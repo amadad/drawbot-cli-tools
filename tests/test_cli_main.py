@@ -90,3 +90,24 @@ def test_render_propagates_requested_backend_to_wrapper_aware_scripts(
 
     assert result.exit_code == 0, result.stdout
     assert calls == [(script_path.resolve(), None, "drawbot-skia")]
+
+
+def test_render_uses_env_selected_backend_for_wrapper_aware_scripts(
+    tmp_path, monkeypatch
+):
+    script_path = tmp_path / "poster.py"
+    script_path.write_text("print('ok')\n", encoding="utf-8")
+
+    calls = []
+
+    def fake_run_drawbot_script(script, output_path=None, backend=None):
+        calls.append((script, output_path, backend))
+        return True
+
+    monkeypatch.setenv(DRAWBOT_BACKEND_ENV_VAR, "drawbot-skia")
+    monkeypatch.setattr(main_mod, "run_drawbot_script", fake_run_drawbot_script)
+
+    result = runner.invoke(app, ["render", str(script_path)])
+
+    assert result.exit_code == 0, result.stdout
+    assert calls == [(script_path.resolve(), None, "drawbot-skia")]
