@@ -1,0 +1,50 @@
+name: Run tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [windows-latest, macOS-latest, ubuntu-latest]
+        python-version: [3.8, "3.10"]
+        exclude:
+          - os: macOS-10.15
+            python-version: "3.10"
+          - os: windows-latest
+            python-version: "3.10"
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install .
+        pip install flake8
+    - name: Lint with flake8
+      run: |
+        flake8 src
+        flake8 tests
+    - name: Test with pytest
+      run: |
+        pytest
+
+    - name: Storing Test Failure Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: apitests_output
+        path: ./tests/apitests_output

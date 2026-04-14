@@ -1,77 +1,48 @@
-# DrawBot Redux
+# drawbot
 
-Design system for DrawBot with CLI tooling.
+This repo is a radically minimal, skia-native, headless DrawBot CLI.
 
-## CLI
+## What is active
+
+- `vendor/` — bundled upstream `drawbot-skia` source we can inspect and modify
+- `drawbot_cli/` — active CLI code
+- `tests/` — active v2 tests only
+
+Key active modules:
+- `drawbot_cli/runtime/skia.py` — runtime import boundary into bundled upstream code
+- `drawbot_cli/commands/` — CLI command groups (`doctor`, `run`, `new`, `api`, `spec`)
+- `drawbot_cli/spec/core.py` — minimal YAML spec validation and rendering
+
+## What is not active
+
+- `_archive/` contains the old brownfield implementation
+- Treat `_archive/` as reference only unless explicitly porting something small
+
+## Current commands
 
 ```bash
-drawbot render script.py          # Render
-drawbot preview script.py         # Render + open
-drawbot watch script.py           # Hot reload
-drawbot new poster --template grid  # Scaffold
-drawbot from-spec poster.yaml     # YAML spec
-
-# Evolutionary forms
-drawbot evolve init               # Initialize
-drawbot evolve gen0 -n 16         # Generate population
-drawbot evolve select gen_000 -w 1,2,3  # Select winners
-drawbot evolve breed gen_000      # Breed next gen
-drawbot evolve status             # Show status
+drawbot doctor
+drawbot run script.py -o output.png
+drawbot new name
+drawbot api list
+drawbot api show SYMBOL
+drawbot api gaps
+drawbot spec validate poster.yaml
+drawbot spec explain poster.yaml
+drawbot spec render poster.yaml -o poster.pdf
 ```
 
-## Quick Reference
+## Guidance
 
-```python
-import drawBot as db
-from drawbot_grid import Grid
-from drawbot_design_system import (
-    POSTER_SCALE, setup_poster_page, draw_wrapped_text, get_output_path
-)
+- Prefer deleting complexity over preserving legacy abstractions
+- Keep the command surface small and honest
+- Add one real capability at a time
+- Extend the current spec layer incrementally instead of reviving the old brownfield spec system wholesale
+- Do not reintroduce backend selection or native DrawBot compatibility unless explicitly requested
 
-# Setup
-WIDTH, HEIGHT, MARGIN = setup_poster_page("letter")  # or a4, tabloid
-grid = Grid.from_margins((-MARGIN,)*4, column_subdivisions=12, row_subdivisions=8)
-scale = POSTER_SCALE  # or MAGAZINE_SCALE, BOOK_SCALE, REPORT_SCALE
+## Current gotchas
 
-# Draw with grid
-x, y = grid[(0, 6)]       # Position at col 0, row 6
-w, h = grid * (12, 2)     # Size: 12 cols, 2 rows
-db.rect(x, y, w, h)
-
-# Text
-db.font("Helvetica Bold")
-db.fontSize(scale.title)  # 91pt
-draw_wrapped_text(text, x, y, w, h, "Helvetica", scale.body)
-
-# Save
-db.saveImage(str(get_output_path("poster.pdf")))
-```
-
-## Typography Scales
-
-| Scale | Base | Ratio | Use |
-|-------|------|-------|-----|
-| POSTER_SCALE | 18pt | 1.5 | Posters |
-| MAGAZINE_SCALE | 11pt | 1.25 | Magazines |
-| BOOK_SCALE | 11pt | 1.2 | Books |
-| REPORT_SCALE | 12pt | 1.25 | Reports |
-
-## Common Mistakes
-
-- DrawBot uses **bottom-left** origin (not top-left)
-- Call `newPage()` before drawing
-- Set fill/stroke **before** drawing, not after
-- Use `draw_wrapped_text()` not `textwrap.wrap()`
-- Use `get_output_path()` not hardcoded paths
-
-## Structure
-
-```
-cli/
-  main.py      # CLI entry point
-  spec.py      # YAML spec renderer
-  evolve/      # Evolutionary form generation
-lib/           # Design system
-examples/      # Examples
-docs/          # guide.md, api.md
-```
+- `drawbot doctor` now reports bundled source paths, module name, version, and status
+- `drawbot api` introspects the exported `drawbot_skia.drawbot` surface directly
+- `drawbot spec` is intentionally small right now: page presets plus `rect`, `oval`, `line`, `text`, and `image`
+- `drawbot spec render` defaults to writing `<spec>.pdf` beside the YAML file when `--output` is omitted

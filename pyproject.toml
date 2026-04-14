@@ -1,84 +1,41 @@
 [project]
-name = "drawbot-redux"
+name = "drawbot-cli"
 version = "0.1.0"
-description = "Compositional design system for DrawBot with automatic typography enforcement"
+description = "Headless, skia-native DrawBot CLI."
 readme = "README.md"
 requires-python = ">=3.11"
-
-# Core dependencies only - what you need to run the design system
 dependencies = [
-    "pillow>=10.0.0",
-    "fonttools>=4.50.0",
+    "typer>=0.15.0",
+    "pyyaml>=6.0",
+    "skia-python",
+    "fonttools[unicode]",
+    "numpy",
+    "uharfbuzz",
+    "python-bidi==0.4.2",
+    "unicodedata2",
+    "skia-pathops",
+    "blackrenderer",
 ]
 
 [project.optional-dependencies]
-# Full DrawBot support (macOS only)
-drawbot = [
-    "drawbot",
-    "drawbotgrid",
-    "pyobjc>=11.0",
-]
-
-# Cross-platform backend support
-# Pillow remains the shared image compatibility layer for renderer helpers.
-drawbot-skia = [
-    "drawbot-skia",
-]
-
-# MCP server for Claude Desktop integration
-mcp = [
-    "fastmcp>=2.10.6",
-    "anthropic>=0.25.0",
-]
-
-# Font editing tools (optional, heavy)
-fonts = [
-    "booleanoperations>=0.9.0",
-    "defcon>=0.12.1",
-    "fontmath>=0.9.4",
-    "fontparts",
-    "fontpens",
-    "mutatormath>=3.0.1",
-    "ufo-extractor",
-    "compositor",
-]
-
-# CLI tools
-cli = [
-    "typer[all]>=0.15.0",
-    "watchfiles>=1.0.0",
-    "pyyaml>=6.0",
-    "pydantic>=2.0",
-]
-
-# Development tools
 dev = [
-    "black>=25.1.0",
     "pytest>=8.0.0",
 ]
 
 [project.scripts]
-drawbot = "cli.main:app"
-
-[tool.uv.sources]
-drawbotgrid = { git = "https://github.com/mathieureguer/drawbotgrid" }
-drawbot = { git = "https://github.com/typemytype/drawbot" }
-fontparts = { git = "https://github.com/robotools/fontParts" }
-fontpens = { git = "https://github.com/robotools/fontPens" }
-compositor = { git = "https://github.com/robotools/compositor" }
-ufo-extractor = { git = "https://github.com/robotools/extractor" }
+drawbot = "drawbot_cli.app:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["lib"]
+pythonpath = ["."]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["cli", "lib"]
+packages = ["drawbot_cli"]
 
 [tool.basedpyright]
-extraPaths = ["lib", "cli"]
+extraPaths = ["."]
 pythonVersion = "3.11"

@@ -1,94 +1,104 @@
-# DrawBot Redux
+# drawbot
 
-Design system for DrawBot with typography enforcement and CLI tooling.
+A radically minimal, headless DrawBot CLI built on bundled upstream `drawbot-skia` source.
+
+## Current commands
+
+```bash
+drawbot doctor
+drawbot run script.py -o output.png
+drawbot new name
+drawbot api list
+drawbot api show SYMBOL
+drawbot api gaps
+drawbot spec validate poster.yaml
+drawbot spec explain poster.yaml
+drawbot spec render poster.yaml -o poster.pdf
+```
+
+## Layout
+
+```text
+vendor/                # bundled upstream drawbot-skia source
+drawbot_cli/           # active CLI code
+tests/                 # active v2 tests only
+_archive/              # brownfield code kept for reference
+```
 
 ## Install
 
-Choose a backend:
-
-### Native DrawBot (macOS, existing workflow)
+This repo bundles the upstream source locally, but you still need the runtime dependencies.
 
 ```bash
-uv sync --extra cli --extra drawbot
+uv sync
 ```
 
-### drawbot-skia (cross-platform)
+Then verify the setup:
 
 ```bash
-uv sync --extra cli --extra drawbot-skia
+drawbot doctor
 ```
 
-The CLI resolves backends in this order:
-1. `--backend`
-2. `DRAWBOT_BACKEND`
-3. auto-detect (`drawBot` first, then `drawbot-skia`)
+`doctor` reports the bundled source paths, imported module, runtime version, and status.
 
-Phase 1 keeps existing DrawBot-first script workflows working as-is. `drawbot render`, `drawbot preview`, and `drawbot watch` still support scripts that directly use `import drawBot as db` when native DrawBot is installed. The new backend wrapper mainly powers repo-owned library/spec flows and newly scaffolded scripts.
-
-## CLI
+## Run a script
 
 ```bash
-drawbot render script.py          # Render script
-drawbot render script.py --open   # Render and open
-drawbot render script.py --backend drawbot-skia
-DRAWBOT_BACKEND=drawbot-skia drawbot from-spec poster.yaml
-drawbot preview script.py         # Quick render + open
-drawbot watch script.py           # Hot reload
-drawbot new poster --template grid  # Scaffold from template
-drawbot from-spec poster.yaml     # Render from YAML
-drawbot templates list            # List templates
-
-# Evolutionary form generation
-drawbot evolve init               # Initialize project
-drawbot evolve gen0 -n 16         # Generate initial population
-drawbot evolve select gen_000 -w 1,2,3  # Select winners
-drawbot evolve breed gen_000      # Breed next generation
-drawbot evolve status             # Show evolution status
+drawbot run poster.py -o output/poster.png
 ```
 
-## Usage
+The `run` command delegates directly to the bundled upstream `drawbot-skia` runner.
 
-```python
-from drawbot_backend import db
-from drawbot_grid import Grid
-from drawbot_design_system import (
-    POSTER_SCALE,
-    setup_poster_page,
-    draw_wrapped_text,
-    get_output_path,
-)
+## Inspect the runtime surface
 
-WIDTH, HEIGHT, MARGIN = setup_poster_page("letter")
-grid = Grid.from_margins((-MARGIN,) * 4, column_subdivisions=12, row_subdivisions=8)
-scale = POSTER_SCALE
-
-db.fill(0.1)
-db.rect(*grid[(0, 6)], *(grid * (12, 2)))
-
-draw_wrapped_text("Hello DrawBot", MARGIN, HEIGHT - MARGIN, WIDTH - 2 * MARGIN, 120, "Helvetica", scale.body)
-db.saveImage(str(get_output_path("poster.pdf")))
+```bash
+drawbot api list
+drawbot api show newPage
+drawbot api gaps
 ```
 
-## Structure
+The `api` group introspects the exported `drawbot_skia.drawbot` surface without adding another abstraction layer.
 
+## Render a simple YAML spec
+
+The current spec layer is intentionally small: absolute positioning, page presets (`letter`, `a4`, `tabloid`, `square`), and five element types: `rect`, `oval`, `line`, `text`, and `image`.
+
+```yaml
+page:
+  format: letter
+  background: "#ffffff"
+
+elements:
+  - type: rect
+    x: 72
+    y: 72
+    width: 200
+    height: 120
+    fill: "#111111"
+
+  - type: text
+    text: "Hello DrawBot"
+    x: 72
+    y: 240
+    font: Helvetica
+    font_size: 36
 ```
-├── cli/
-│   ├── main.py        # CLI entry point
-│   ├── spec.py        # YAML spec renderer
-│   └── evolve/        # Evolutionary form generation
-├── lib/               # Design system
-├── examples/          # Example scripts
-├── docs/              # guide.md, api.md
-└── output/            # Rendered output
+
+```bash
+drawbot spec validate poster.yaml
+drawbot spec explain poster.yaml
+drawbot spec render poster.yaml -o output/poster.pdf
 ```
 
-## Backend Notes
+If `--output` is omitted, `spec render` writes beside the YAML file as `<name>.pdf`.
 
-- New scaffolds now import `db` from `drawbot_backend`, so they can run on either supported backend.
-- Existing user-authored scripts that directly import `drawBot` are still supported in the native DrawBot path.
-- Phase 1 does not rewrite every example or arbitrary user script to become backend-neutral automatically.
+## Scope
 
-## Docs
+This repo is now intentionally narrow:
+- skia-native only
+- headless only
+- no backend switching
+- no native DrawBot compatibility layer
+- simple commands first, one real capability at a time
 
-- [docs/guide.md](docs/guide.md) - Design system usage
-- [docs/api.md](docs/api.md) - DrawBot API reference
+Anything from the previous brownfield implementation lives under `_archive/` and is reference-only.
