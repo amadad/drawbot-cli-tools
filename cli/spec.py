@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import yaml
+from PIL import Image
 from pydantic import BaseModel, Field
 
 # Add lib to path for design system imports
@@ -224,6 +225,114 @@ def load_spec(spec_path: Path, overrides: Optional[Dict[str, Any]] = None) -> Po
 
 
 # -----------------------------------------------------------------------------
+# Backend-neutral drawing helpers
+# -----------------------------------------------------------------------------
+
+
+def build_rounded_rect_path(
+    db: Any, x: float, y: float, width: float, height: float, radius: float
+):
+    """Build a rounded rectangle path without relying on backend helpers."""
+    radius = max(0.0, min(radius, width / 2, height / 2))
+    path = db.BezierPath()
+
+    if radius == 0:
+        path.rect(x, y, width, height)
+        return path
+
+    kappa = 0.5522847498
+    ctrl = radius * kappa
+    right = x + width
+    top = y + height
+
+    path.moveTo((x + radius, y))
+    path.lineTo((right - radius, y))
+    path.curveTo(
+        (right - radius + ctrl, y),
+        (right, y + radius - ctrl),
+        (right, y + radius),
+    )
+    path.lineTo((right, top - radius))
+    path.curveTo(
+        (right, top - radius + ctrl),
+        (right - radius + ctrl, top),
+        (right - radius, top),
+    )
+    path.lineTo((x + radius, top))
+    path.curveTo(
+        (x + radius - ctrl, top),
+        (x, top - radius + ctrl),
+        (x, top - radius),
+    )
+    path.lineTo((x, y + radius))
+    path.curveTo(
+        (x, y + radius - ctrl),
+        (x + radius - ctrl, y),
+        (x + radius, y),
+    )
+    path.closePath()
+    return path
+
+
+def get_image_size(image_path: Path) -> Tuple[float, float]:
+    """Return image dimensions using Pillow so rendering is backend-independent."""
+    with Image.open(image_path) as image:
+        return image.size
+
+
+def compute_image_placement(
+    frame: Tuple[float, float, float, float],
+    intrinsic_size: Tuple[float, float],
+    fit: str,
+) -> Tuple[float, float, float, float]:
+    """Compute final image placement in page coordinates."""
+    x, y, width, height = frame
+    image_width, image_height = intrinsic_size
+
+    if fit == "stretch":
+        return x, y, width / image_width, height / image_height
+
+    if fit == "fill":
+        scale = max(width / image_width, height / image_height)
+    else:
+        scale = min(width / image_width, height / image_height)
+
+    draw_width = image_width * scale
+    draw_height = image_height * scale
+    draw_x = x + (width - draw_width) / 2
+    draw_y = y + (height - draw_height) / 2
+    return draw_x, draw_y, scale, scale
+
+
+def draw_image_in_frame(
+    db: Any,
+    image_path: Path,
+    frame: Tuple[float, float, float, float],
+    fit: str,
+    opacity: float = 1.0,
+) -> None:
+    """Draw an image via translate/scale so backends do not need DrawBot-only helpers."""
+    x, y, width, height = frame
+    intrinsic_size = get_image_size(image_path)
+    draw_x, draw_y, scale_x, scale_y = compute_image_placement(
+        frame, intrinsic_size, fit
+    )
+
+    with db.savedState():
+        if opacity < 1.0:
+            db.opacity(opacity)
+
+        if fit == "fill":
+            clip_path = db.BezierPath()
+            clip_path.rect(x, y, width, height)
+            db.clipPath(clip_path)
+
+        db.translate(draw_x, draw_y)
+        db.scale(scale_x, scale_y)
+        db.image(str(image_path), (0, 0))
+
+
+# -----------------------------------------------------------------------------
 # Renderer
 # -----------------------------------------------------------------------------
 
@@ -317,7 +426,7 @@ def render_from_spec(
                 db.stroke(None)
 
             if elem.corner_radius > 0:
-                db.roundedRect(x, y, w, h, elem.corner_radius)
+                db.drawPath(build_rounded_rect_path(db, x, y, w, h, elem.corner_radius))
             else:
                 db.rect(x, y, w, h)
 
@@ -398,37 +507,13 @@ def render_from_spec(
                 img_path = spec_path.parent / img_path
 
             if img_path.exists():
-                with db.savedState():
-                    if elem.opacity < 1.0:
-                        db.opacity(elem.opacity)
-
-                    # Get image size for fitting
-                    img_w, img_h = db.imageSize(str(img_path))
-
-                    if elem.fit == "fill":
-                        # Scale to fill, may crop
-                        img_scale = max(w / img_w, h / img_h)
-                    elif elem.fit == "fit":
-                        # Scale to fit, may have margins
-                        img_scale = min(w / img_w, h / img_h)
-                    else:  # stretch
-                        img_scale = 1
-
-                    if elem.fit != "stretch":
-                        new_w = img_w * img_scale
-                        new_h = img_h * img_scale
-                        offset_x = (w - new_w) / 2
-                        offset_y = (h - new_h) / 2
-                        db.image(str(img_path), (x + offset_x, y + offset_y), scale=img_scale)
-                    else:
-                        # Stretch: scale to fit box dimensions
-                        scale_x = w / img_w
-                        scale_y = h / img_h
-                        db.save()
-                        db.translate(x, y)
-                        db.scale(scale_x, scale_y)
-                        db.image(str(img_path), (0, 0))
-                        db.restore()
+                draw_image_in_frame(
+                    db,
+                    img_path,
+                    (x, y, w, h),
+                    elem.fit,
+                    opacity=elem.opacity,
+                )
 
     # Determine output path
     if output_path:
