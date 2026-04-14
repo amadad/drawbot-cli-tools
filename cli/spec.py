@@ -232,6 +232,7 @@ def render_from_spec(
     spec_path: Path,
     output_path: Optional[Path] = None,
     overrides: Optional[Dict[str, Any]] = None,
+    backend: Optional[str] = None,
 ) -> Path:
     """
     Render a poster from YAML specification.
@@ -244,7 +245,9 @@ def render_from_spec(
     Returns:
         Path to rendered file
     """
-    import drawBot as db
+    from drawbot_backend import get_backend
+
+    db = get_backend(selected=backend)
 
     from drawbot_design_system import (
         BOOK_SCALE,

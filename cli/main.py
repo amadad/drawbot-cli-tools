@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from drawbot_backend import DRAWBOT_BACKEND_ENV_VAR, SUPPORTED_BACKENDS, resolve_backend
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -43,7 +45,11 @@ def ensure_output_dir():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
 
-def run_drawbot_script(script_path: Path, output_path: Optional[Path] = None) -> bool:
+def run_drawbot_script(
+    script_path: Path,
+    output_path: Optional[Path] = None,
+    backend: Optional[str] = None,
+) -> bool:
     """
     Execute a DrawBot script.
 
@@ -60,6 +66,9 @@ def run_drawbot_script(script_path: Path, output_path: Optional[Path] = None) ->
 
     if output_path:
         env["DRAWBOT_OUTPUT"] = str(output_path)
+
+    if backend:
+        env[DRAWBOT_BACKEND_ENV_VAR] = backend
 
     try:
         result = subprocess.run(
@@ -91,6 +100,7 @@ def render(
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path"),
     output_format: str = typer.Option("pdf", "--format", "-f", help="Output format: pdf, png, svg"),
     open_file: bool = typer.Option(False, "--open", help="Open file after rendering"),
+    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
 ):
     """
     Render a DrawBot script to PDF/PNG/SVG.
@@ -103,9 +113,10 @@ def render(
 
     script = script.resolve()
 
-    console.print(f"[blue]Rendering:[/blue] {script.name}")
+    backend_info = resolve_backend(selected=backend)
+    console.print(f"[blue]Rendering:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
 
-    success = run_drawbot_script(script, output)
+    success = run_drawbot_script(script, output, backend=backend_info.name)
 
     if success:
         # Try to find the output file
@@ -130,6 +141,7 @@ def render(
 @app.command()
 def preview(
     script: Path = typer.Argument(..., help="Path to DrawBot script"),
+    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
 ):
     """
     Quick render and open - for rapid iteration.
@@ -141,9 +153,10 @@ def preview(
 
     script = script.resolve()
 
-    console.print(f"[blue]Preview:[/blue] {script.name}")
+    backend_info = resolve_backend(selected=backend)
+    console.print(f"[blue]Preview:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
 
-    success = run_drawbot_script(script)
+    success = run_drawbot_script(script, backend=backend_info.name)
 
     if success:
         # Find most recent PDF
@@ -163,6 +176,7 @@ def preview(
 def watch(
     script: Path = typer.Argument(..., help="Path to DrawBot script"),
     open_first: bool = typer.Option(True, "--open/--no-open", help="Open file on first render"),
+    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
 ):
     """
     Watch script and re-render on changes.
@@ -184,11 +198,12 @@ def watch(
         console.print(f"[red]Error:[/red] Script not found: {script}")
         raise typer.Exit(1)
 
-    console.print(f"[blue]Watching:[/blue] {script.name}")
+    backend_info = resolve_backend(selected=backend)
+    console.print(f"[blue]Watching:[/blue] {script.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
     console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
     # Initial render
-    success = run_drawbot_script(script)
+    success = run_drawbot_script(script, backend=backend_info.name)
 
     if success and open_first:
         outputs = sorted(OUTPUT_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -199,7 +214,7 @@ def watch(
     try:
         for changes in watchfiles_watch(script.parent, watch_filter=lambda _, p: p == str(script)):
             console.print(f"\n[yellow]Changed:[/yellow] {script.name}")
-            success = run_drawbot_script(script)
+            success = run_drawbot_script(script, backend=backend_info.name)
             if success:
                 console.print("[green]Rendered[/green]")
     except KeyboardInterrupt:
@@ -505,6 +520,7 @@ def from_spec(
     spec_file: Path = typer.Argument(..., help="YAML spec file"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path"),
     open_file: bool = typer.Option(False, "--open", help="Open after rendering"),
+    backend: Optional[str] = typer.Option(None, "--backend", help=f"Backend: {', '.join(SUPPORTED_BACKENDS)}"),
 ):
     """
     Render from YAML specification file.
@@ -525,10 +541,11 @@ def from_spec(
         console.print(f"[red]Error:[/red] Spec file not found: {spec_file}")
         raise typer.Exit(1)
 
-    console.print(f"[blue]Rendering spec:[/blue] {spec_file.name}")
+    backend_info = resolve_backend(selected=backend)
+    console.print(f"[blue]Rendering spec:[/blue] {spec_file.name} [dim]({backend_info.name} via {backend_info.source})[/dim]")
 
     try:
-        out_path = render_from_spec(spec_file, output)
+        out_path = render_from_spec(spec_file, output, backend=backend_info.name)
         console.print(f"[green]Saved:[/green] {out_path}")
 
         if open_file:

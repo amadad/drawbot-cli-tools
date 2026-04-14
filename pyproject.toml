@@ -19,6 +19,12 @@ drawbot = [
     "pyobjc>=11.0",
 ]
 
+# Cross-platform backend support
+# Pillow remains the shared image compatibility layer for renderer helpers.
+drawbot-skia = [
+    "drawbot-skia",
+]
+
 # MCP server for Claude Desktop integration
 mcp = [
     "fastmcp>=2.10.6",
