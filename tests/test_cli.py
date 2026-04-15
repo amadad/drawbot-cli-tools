@@ -59,6 +59,18 @@ class FakeDB:
 
 
 
+def test_cli_help_lists_high_level_workflow_before_runtime_internals():
+    result = runner.invoke(app, ["--help"])
+
+    assert result.exit_code == 0, result.stdout
+    output = result.stdout
+    assert "High-level workflow:" in output
+    assert "drawbot design validate DESIGN.md" in output
+    assert "drawbot recipe validate fixtures/brand_artifacts/social-quote.recipe.yaml" in output
+    assert "drawbot create social-quote --design DESIGN.md" in output
+    assert output.index("High-level workflow:") < output.index("run      Run a script through the vendored drawbot-skia runtime.")
+
+
 def test_vendor_paths_match_flat_layout():
     assert skia_mod.vendor_root().name == "vendor"
     assert skia_mod.vendor_src() == skia_mod.vendor_root() / "src"

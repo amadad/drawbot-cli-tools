@@ -14,17 +14,23 @@ from drawbot_cli.commands.spec import spec_app
 
 app = typer.Typer(
     name="drawbot",
-    help="Headless, skia-native DrawBot CLI.",
+    help=(
+        "Headless, skia-native DrawBot CLI.\n\n"
+        "High-level workflow:\n"
+        "  drawbot design validate DESIGN.md\n"
+        "  drawbot recipe validate fixtures/brand_artifacts/social-quote.recipe.yaml\n"
+        "  drawbot create social-quote --design DESIGN.md --recipe fixtures/brand_artifacts/social-quote.recipe.yaml --data fixtures/brand_artifacts/social-quote.content.yaml -o out/social-quote"
+    ),
     no_args_is_help=True,
 )
 
 app.command()(run)
 app.command()(doctor)
 app.command()(new)
-app.add_typer(api_app, name="api")
 app.add_typer(create_app, name="create")
 app.add_typer(design_app, name="design")
 app.add_typer(recipe_app, name="recipe")
+app.add_typer(api_app, name="api")
 app.add_typer(spec_app, name="spec")
 
 

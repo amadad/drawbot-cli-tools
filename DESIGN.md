@@ -49,6 +49,18 @@ rules:
   - implementations may add layout logic but may not invent new tokens
 ```
 
+## Workflow architecture
+
+The branded artifact pipeline is intentionally explicit:
+
+1. `DESIGN.md` is the contract source of truth for brand identity, tokens, canvas, and allowed inputs.
+2. `fixtures/brand_artifacts/social-quote.recipe.yaml` locks the executable artifact family, page geometry, placements, and the canonical embedded copy required by the v1 command path.
+3. `fixtures/brand_artifacts/social-quote.content.yaml` is the authoring content payload for `quote`, `author`, and `source`.
+4. `drawbot create social-quote` combines the design contract, recipe, and content into deterministic internal specs.
+5. The create pipeline lints each spec against design tokens, recipe placements, and required content fields.
+6. Lint-clean variants render to PDF, and `manifest.json` records every generated spec, render outcome, lint payload, and warning.
+7. `fixtures/brand_artifacts/social-quote.review.yaml` is the final review checklist for a human or agent before publish.
+
 ## Guidance
 
 The contract exists so downstream agent tasks can generate one real branded artifact without guessing.
@@ -61,3 +73,35 @@ Keep the v1 implementation specific:
 - Treat the token block above as the validation source of truth.
 
 The recipe should map these tokens onto the current `drawbot spec` surface as directly as possible. For v1, the documented command path is intentionally locked to one executable recipe, so the canonical quote copy is embedded directly in the recipe instead of being templated at render time. The content fixture remains the authoring reference for the same required fields. The review rubric gives a concrete success check for human or automated review.
+
+## Worked example: social-quote
+
+Validate and inspect the inputs:
+
+```bash
+uv run drawbot design validate DESIGN.md
+uv run drawbot recipe validate fixtures/brand_artifacts/social-quote.recipe.yaml
+uv run drawbot design explain DESIGN.md
+uv run drawbot recipe explain fixtures/brand_artifacts/social-quote.recipe.yaml
+```
+
+Generate the artifact set:
+
+```bash
+uv run drawbot create social-quote \
+  --design DESIGN.md \
+  --recipe fixtures/brand_artifacts/social-quote.recipe.yaml \
+  --data fixtures/brand_artifacts/social-quote.content.yaml \
+  -n 4 \
+  -o out/social-quote \
+  --seed 7
+```
+
+The resulting `out/social-quote/manifest.json` should summarize:
+
+- `artifact: social-quote`
+- `summary.total: 4`
+- `summary.rendered: 4` when all variants pass lint
+- per-variant `layout`, `spec`, `output`, `rendered`, `warnings`, and machine-readable `lint`
+
+The repo fixture walkthrough in `fixtures/brand_artifacts/WORKFLOW.md` documents the same path end to end.

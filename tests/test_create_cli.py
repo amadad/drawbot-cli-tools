@@ -14,6 +14,54 @@ runner = CliRunner()
 FIXTURE_ROOT = Path("fixtures/brand_artifacts")
 
 
+def test_social_quote_workflow_smoke_proves_fixture_driven_pipeline(tmp_path):
+    out_dir = tmp_path / "workflow-out"
+
+    design_validate = runner.invoke(app, ["design", "validate", "DESIGN.md"])
+    recipe_validate = runner.invoke(app, ["recipe", "validate", str(FIXTURE_ROOT / "social-quote.recipe.yaml")])
+    design_explain = runner.invoke(app, ["design", "explain", "DESIGN.md", "--json"])
+    recipe_explain = runner.invoke(app, ["recipe", "explain", str(FIXTURE_ROOT / "social-quote.recipe.yaml"), "--json"])
+    create_result = runner.invoke(
+        app,
+        [
+            "create",
+            "social-quote",
+            "--design",
+            "DESIGN.md",
+            "--recipe",
+            str(FIXTURE_ROOT / "social-quote.recipe.yaml"),
+            "--data",
+            str(FIXTURE_ROOT / "social-quote.content.yaml"),
+            "-n",
+            "2",
+            "-o",
+            str(out_dir),
+            "--seed",
+            "5",
+            "--json",
+        ],
+    )
+
+    assert design_validate.exit_code == 0, design_validate.stdout
+    assert recipe_validate.exit_code == 0, recipe_validate.stdout
+    assert json.loads(design_explain.stdout)["artifact"]["family"] == "social-quote"
+    assert json.loads(recipe_explain.stdout)["content_fields"] == ["quote", "author", "source"]
+
+    assert create_result.exit_code == 0, create_result.stdout
+    payload = json.loads(create_result.stdout)
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert payload["manifest"] == str((out_dir / "manifest.json").resolve())
+    assert manifest["inputs"]["design"].endswith("DESIGN.md")
+    assert manifest["inputs"]["recipe"].endswith("fixtures/brand_artifacts/social-quote.recipe.yaml")
+    assert manifest["inputs"]["data"].endswith("fixtures/brand_artifacts/social-quote.content.yaml")
+    assert manifest["summary"] == {"total": 2, "rendered": 2, "failed_lint": 0}
+    assert [variant["spec"] for variant in manifest["variants"]] == ["social-quote-01.yaml", "social-quote-02.yaml"]
+    assert [variant["output"] for variant in manifest["variants"]] == ["social-quote-01.pdf", "social-quote-02.pdf"]
+    assert all((out_dir / variant["spec"]).exists() for variant in manifest["variants"])
+    assert all((out_dir / variant["output"]).exists() for variant in manifest["variants"])
+
+
+
 def test_create_social_quote_generates_deterministic_specs_renders_outputs_and_manifest(tmp_path):
     out_dir = tmp_path / "out"
 
