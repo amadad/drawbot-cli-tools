@@ -40,6 +40,9 @@ def create_social_quote(
         "ok": True,
         "manifest": str(result.manifest_path),
         "specs": [str(path) for path in result.spec_paths],
+        "outputs": [str(path) for path in result.output_paths],
+        "rendered": len(result.output_paths),
+        "failed_lint": sum(1 for variant in result.variants if not variant.lint["ok"]),
     }
     if as_json:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
@@ -48,3 +51,5 @@ def create_social_quote(
     typer.echo(f"manifest={result.manifest_path}")
     for spec_path in result.spec_paths:
         typer.echo(f"spec={spec_path}")
+    for output_path in result.output_paths:
+        typer.echo(f"output={output_path}")
