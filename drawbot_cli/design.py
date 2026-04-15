@@ -17,7 +17,14 @@ REQUIRED_TOP_LEVEL_FIELDS = (
     "rules",
 )
 REQUIRED_COLOR_TOKENS = ("background", "panel", "accent", "text", "muted")
-REQUIRED_TYPOGRAPHY_TOKENS = ("quote_font", "quote_size", "attribution_font", "attribution_size")
+REQUIRED_TYPOGRAPHY_TOKENS = (
+    "quote_font",
+    "quote_size",
+    "attribution_font",
+    "attribution_size",
+    "source_font",
+    "source_size",
+)
 REQUIRED_SPACING_TOKENS = ("outer_padding", "quote_gap")
 
 
@@ -117,6 +124,8 @@ def normalize_design(document: DesignDocument) -> dict[str, Any]:
             "quote_size": int(tokens["typography"]["quote_size"]),
             "attribution_font": str(tokens["typography"]["attribution_font"]),
             "attribution_size": int(tokens["typography"]["attribution_size"]),
+            "source_font": str(tokens["typography"]["source_font"]),
+            "source_size": int(tokens["typography"]["source_size"]),
         },
         "composition": {
             "canvas": {

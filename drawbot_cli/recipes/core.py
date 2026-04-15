@@ -122,25 +122,26 @@ def validate_recipe(recipe: dict[str, Any], recipe_path: Path | None = None) -> 
             errors.append(f"variants.{key} must be one of: {', '.join(allowed)}")
 
     content_ref = recipe.get("content")
-    if not isinstance(content_ref, str) or not content_ref:
-        errors.append("content must be a non-empty path string")
-    elif recipe_path is not None:
-        content_path = Path(content_ref)
-        if not content_path.is_absolute():
-            candidates = [recipe_path.parent / content_path, Path.cwd() / content_path]
-            content_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-        if not content_path.exists():
-            errors.append(f"content file not found: {content_ref}")
-        else:
-            try:
-                content = _load_content(content_path)
-            except ValueError as exc:
-                errors.append(str(exc))
+    if content_ref is not None:
+        if not isinstance(content_ref, str) or not content_ref:
+            errors.append("content must be a non-empty path string")
+        elif recipe_path is not None:
+            content_path = Path(content_ref)
+            if not content_path.is_absolute():
+                candidates = [recipe_path.parent / content_path, Path.cwd() / content_path]
+                content_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+            if not content_path.exists():
+                errors.append(f"content file not found: {content_ref}")
             else:
-                for field in SOCIAL_QUOTE_REQUIRED_FIELDS:
-                    value = content.get(field)
-                    if not isinstance(value, str) or not value.strip():
-                        errors.append(f"content missing required field: {field}")
+                try:
+                    content = _load_content(content_path)
+                except ValueError as exc:
+                    errors.append(str(exc))
+                else:
+                    for field in SOCIAL_QUOTE_REQUIRED_FIELDS:
+                        value = content.get(field)
+                        if not isinstance(value, str) or not value.strip():
+                            errors.append(f"content missing required field: {field}")
 
     return errors
 
