@@ -1,0 +1,14 @@
+contract_version: 1
+artifact: social-quote
+checks:
+  - id: brand-match
+    requirement: Uses only the colors and typography tokens defined in DESIGN.md.
+  - id: field-completeness
+    requirement: Rendered output includes quote, author, and source from the content fixture.
+  - id: canvas-match
+    requirement: Output canvas is exactly 1080x1350.
+  - id: composition
+    requirement: Quote is the dominant text block and attribution is visually secondary.
+  - id: command-path
+    requirement: The artifact can be produced from the single documented command path without extra config.
+pass_condition: All checks pass.
