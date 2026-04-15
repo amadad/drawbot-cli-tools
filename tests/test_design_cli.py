@@ -25,6 +25,8 @@ def test_design_validate_and_explain_json():
     explanation = json.loads(explain.stdout)
     assert explanation["palette"]["accent"] == "#F59E0B"
     assert explanation["type"]["quote_font"] == "Helvetica-Bold"
+    assert explanation["type"]["source_font"] == "Helvetica"
+    assert explanation["type"]["source_size"] == 28
     assert explanation["composition"]["spacing"]["quote_gap"] == 36
     assert explanation["prose_summary"]["guidance"].startswith("The contract exists")
 
@@ -42,6 +44,14 @@ def test_design_validate_reports_missing_required_tokens(tmp_path):
     assert "missing tokens.colors.panel" in result.stderr
     assert "missing tokens.colors.accent" in result.stderr
     assert "missing tokens.spacing.quote_gap" in result.stderr
+
+
+def test_design_explain_plain_text_includes_full_typography_contract():
+    result = runner.invoke(app, ["design", "explain", "DESIGN.md"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "source_font=Helvetica" in result.stdout
+    assert "source_size=28" in result.stdout
 
 
 def test_design_loader_normalizes_stable_model():

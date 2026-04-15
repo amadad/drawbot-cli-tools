@@ -66,6 +66,8 @@ def design_explain(
                 ("quote_size", explanation["type"]["quote_size"]),
                 ("attribution_font", explanation["type"]["attribution_font"]),
                 ("attribution_size", explanation["type"]["attribution_size"]),
+                ("source_font", explanation["type"]["source_font"]),
+                ("source_size", explanation["type"]["source_size"]),
             )
         )
     )

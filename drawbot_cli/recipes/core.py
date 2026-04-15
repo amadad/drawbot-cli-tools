@@ -13,6 +13,7 @@ SOCIAL_QUOTE_VARIANTS = {
     "accent_edge": ["bottom"],
     "format": ["social-quote-portrait"],
 }
+SOCIAL_QUOTE_EMBEDDED_TEXT_ORDER = ("quote", "author", "source")
 
 
 def load_recipe(path: Path) -> dict[str, Any]:
@@ -41,6 +42,7 @@ def _number(value: Any) -> float | None:
 
 def validate_recipe(recipe: dict[str, Any], recipe_path: Path | None = None) -> list[str]:
     errors: list[str] = []
+    content: dict[str, Any] | None = None
 
     if recipe.get("contract_version") != 1:
         errors.append("contract_version must be 1")
@@ -122,28 +124,49 @@ def validate_recipe(recipe: dict[str, Any], recipe_path: Path | None = None) -> 
             errors.append(f"variants.{key} must be one of: {', '.join(allowed)}")
 
     content_ref = recipe.get("content")
-    if content_ref is not None:
-        if not isinstance(content_ref, str) or not content_ref:
-            errors.append("content must be a non-empty path string")
-        elif recipe_path is not None:
-            content_path = Path(content_ref)
-            if not content_path.is_absolute():
-                candidates = [recipe_path.parent / content_path, Path.cwd() / content_path]
-                content_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
-            if not content_path.exists():
-                errors.append(f"content file not found: {content_ref}")
+    if not isinstance(content_ref, str) or not content_ref:
+        errors.append("content must be a non-empty path string")
+    elif recipe_path is not None:
+        content_path = Path(content_ref)
+        if not content_path.is_absolute():
+            candidates = [recipe_path.parent / content_path, Path.cwd() / content_path]
+            content_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
+        if not content_path.exists():
+            errors.append(f"content file not found: {content_ref}")
+        else:
+            try:
+                content = _load_content(content_path)
+            except ValueError as exc:
+                errors.append(str(exc))
             else:
-                try:
-                    content = _load_content(content_path)
-                except ValueError as exc:
-                    errors.append(str(exc))
-                else:
-                    for field in SOCIAL_QUOTE_REQUIRED_FIELDS:
-                        value = content.get(field)
-                        if not isinstance(value, str) or not value.strip():
-                            errors.append(f"content missing required field: {field}")
+                for field in SOCIAL_QUOTE_REQUIRED_FIELDS:
+                    value = content.get(field)
+                    if not isinstance(value, str) or not value.strip():
+                        errors.append(f"content missing required field: {field}")
+
+    if content is not None:
+        embedded = _embedded_content(recipe)
+        for field in SOCIAL_QUOTE_REQUIRED_FIELDS:
+            expected = content.get(field)
+            actual = embedded.get(field)
+            if isinstance(expected, str) and expected.strip() and actual != expected:
+                errors.append(f"embedded {field} must match content fixture")
 
     return errors
+
+
+def _embedded_content(recipe: dict[str, Any]) -> dict[str, str | None]:
+    elements = recipe.get("elements")
+    texts: list[str] = []
+    if isinstance(elements, list):
+        for element in elements:
+            if isinstance(element, dict) and element.get("type") == "text" and isinstance(element.get("text"), str):
+                texts.append(element["text"])
+
+    return {
+        field: texts[index] if index < len(texts) else None
+        for index, field in enumerate(SOCIAL_QUOTE_EMBEDDED_TEXT_ORDER)
+    }
 
 
 def explain_recipe(recipe: dict[str, Any]) -> dict[str, Any]:

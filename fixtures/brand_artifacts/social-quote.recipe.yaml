@@ -1,6 +1,7 @@
 contract_version: 1
 brand: acme
 artifact: social-quote
+content: fixtures/brand_artifacts/social-quote.content.yaml
 variants:
   format: social-quote-portrait
   accent_edge: bottom
@@ -67,7 +68,7 @@ elements:
     font_size: 72
     fill: "#F8FAFC"
   - type: text
-    text: "— Acme Studio"
+    text: "Acme Studio"
     x: 96
     y: 500
     font: Helvetica

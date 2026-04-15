@@ -66,6 +66,70 @@ placements:
     assert "content missing required field: source" in payload["errors"]
 
 
+def test_recipe_validate_reports_embedded_copy_mismatch(tmp_path):
+    content_path = tmp_path / "content.yaml"
+    content_path.write_text(
+        'quote: "Good design is visible structure made quietly inevitable."\n'
+        'author: "Acme Studio"\n'
+        'source: "Design Principles Notes, 2026"\n',
+        encoding="utf-8",
+    )
+    recipe_path = tmp_path / "recipe.yaml"
+    recipe_path.write_text(
+        f"""
+contract_version: 1
+brand: acme
+artifact: social-quote
+content: {content_path}
+variants:
+  format: social-quote-portrait
+  accent_edge: bottom
+page:
+  width: 1080
+  height: 1350
+safe_zone:
+  x: 96
+  y: 96
+  width: 888
+  height: 1158
+placements:
+  quote:
+    x: 96
+    y: 650
+    width: 888
+    height: 360
+    anchor: bottom-left
+  author:
+    x: 96
+    y: 500
+    width: 888
+    height: 40
+    anchor: bottom-left
+  source:
+    x: 96
+    y: 450
+    width: 888
+    height: 36
+    anchor: bottom-left
+elements:
+  - type: text
+    text: "Good design is visible structure made quietly inevitable."
+  - type: text
+    text: "— Acme Studio"
+  - type: text
+    text: "Design Principles Notes, 2026"
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["recipe", "validate", str(recipe_path), "--json"])
+    assert result.exit_code == 1, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is False
+    assert "embedded author must match content fixture" in payload["errors"]
+
+
 def test_recipe_validate_reports_invalid_geometry_and_options(tmp_path):
     content_path = tmp_path / "content.yaml"
     content_path.write_text('quote: "Hello"\nauthor: "Acme"\nsource: "Notes"\n', encoding="utf-8")
