@@ -128,7 +128,8 @@ def render_spec(path: Path, output: Path | None = None) -> Path:
 
     db = skia.get_drawbot_module()
     width, height = _page_size(spec)
-    output_path = output or path.with_suffix(".pdf")
+    output_path = (output or path.with_suffix(".pdf")).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     db.newDrawing()
     try:
@@ -179,4 +180,4 @@ def render_spec(path: Path, output: Path | None = None) -> Path:
     finally:
         db.endDrawing()
 
-    return output_path.resolve()
+    return output_path

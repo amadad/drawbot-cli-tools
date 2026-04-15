@@ -2,9 +2,9 @@ contract_version: 1
 artifact: social-quote
 checks:
   - id: brand-match
-    requirement: Uses only the colors and typography tokens defined in DESIGN.md.
+    requirement: Uses only the colors and typography tokens defined in DESIGN.md, including the explicit source_font/source_size token pair.
   - id: field-completeness
-    requirement: Rendered output includes quote, author, and source from the content fixture.
+    requirement: Rendered output includes the canonical quote, author, and source values defined by the content fixture and embedded in the v1 recipe.
   - id: canvas-match
     requirement: Output canvas is exactly 1080x1350.
   - id: composition
