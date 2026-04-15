@@ -1,13 +1,51 @@
 contract_version: 1
 brand: acme
 artifact: social-quote
-content: fixtures/brand_artifacts/social-quote.content.yaml
-output:
+variants:
   format: social-quote-portrait
+  accent_edge: bottom
 page:
   width: 1080
   height: 1350
   background: "#0F172A"
+safe_zone:
+  x: 96
+  y: 96
+  width: 888
+  height: 1158
+placements:
+  panel:
+    x: 96
+    y: 96
+    width: 888
+    height: 1158
+    anchor: bottom-left
+  accent_bar:
+    x: 96
+    y: 1186
+    width: 888
+    height: 20
+    anchor: bottom-left
+  quote:
+    x: 96
+    y: 650
+    width: 888
+    height: 360
+    anchor: bottom-left
+  author:
+    x: 96
+    y: 500
+    width: 888
+    height: 40
+    anchor: bottom-left
+  source:
+    x: 96
+    y: 450
+    width: 888
+    height: 36
+    anchor: bottom-left
+output:
+  format: social-quote-portrait
 elements:
   - type: rect
     x: 96
@@ -22,21 +60,21 @@ elements:
     height: 20
     fill: "#F59E0B"
   - type: text
-    text: "{{ quote }}"
+    text: "Good design is visible structure made quietly inevitable."
     x: 96
     y: 650
     font: Helvetica-Bold
     font_size: 72
     fill: "#F8FAFC"
   - type: text
-    text: "— {{ author }}"
+    text: "— Acme Studio"
     x: 96
     y: 500
     font: Helvetica
     font_size: 32
     fill: "#CBD5E1"
   - type: text
-    text: "{{ source }}"
+    text: "Design Principles Notes, 2026"
     x: 96
     y: 450
     font: Helvetica
