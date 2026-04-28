@@ -37,6 +37,7 @@ assets/
 .goose/
 .aider*
 .codex/
+.pi/
 
 # IDE
 .vscode/
